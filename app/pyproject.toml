@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pythonproject1"
+name = "excel_to_json_test_task"
 version = "0.1.0"
 description = ""
 authors = ["Nikita Isaev <isaev.nikita.yr@gmail.com>"]

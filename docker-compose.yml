@@ -8,10 +8,11 @@ services:
       - 8000:8000
     command: uvicorn server:app --host 0.0.0.0 --reload
     volumes:
-      - ./json_output_data:/json_output_data
+      - ./${STORAGE_DIR}:/${STORAGE_DIR}
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - STORAGE_DIR=json_output_data
     depends_on:
       - redis
 
@@ -19,10 +20,11 @@ services:
     build: ./app
     command: celery --app worker.celery worker
     volumes:
-      - ./json_output_data:/json_output_data
+      - ./${STORAGE_DIR}:/${STORAGE_DIR}
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - STORAGE_DIR=json_output_data
     depends_on:
       - app
       - redis

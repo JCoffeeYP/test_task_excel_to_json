@@ -1,44 +1,39 @@
 import json
+import logging
+import os
 import shutil
 from datetime import datetime, time
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+logger = logging.getLogger(__file__)
+
 
 def save_upload_file(upload_file: UploadFile, destination: Path) -> None:
     try:
         with destination.open("wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
+            logger.info(f"Файл {upload_file.filename} успешно сохранён")
     finally:
         upload_file.file.close()
-
-
-def save_upload_file_tmp(upload_file: UploadFile) -> Path:
-    try:
-        suffix = Path(upload_file.filename).suffix
-        with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            shutil.copyfileobj(upload_file.file, tmp)
-            tmp_path = Path(tmp.name)
-    finally:
-        upload_file.file.close()
-    return tmp_path
 
 
 def data_type_definition(value: Any):
 
     if isinstance(value, datetime) or isinstance(value, time):
+        logger.info(f"{value} формат даты")
         return value.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     elif isinstance(value, str):
         try:
             formatted_date = datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
             return formatted_date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         except ValueError:
+            logger.info(f"{value} неверный формат даты")
             pass
         try:
             formatted_value = json.loads(value)
@@ -46,8 +41,10 @@ def data_type_definition(value: Any):
                 formatted_value[key] = data_type_definition(obj)
             return formatted_value
         except (TypeError, AttributeError, json.decoder.JSONDecodeError):
+            logger.info(f"{value} неудачная попытка преобразовать в json")
             pass
     elif isinstance(value, dict):
+        logger.info(f"{value} формат словаря")
         for key, obj in value.items():
             value[key] = data_type_definition(obj)
     return value
@@ -66,8 +63,8 @@ def check_empty_row(row: dict) -> bool:
     return False
 
 
-def parse_excel_file(filename: Path) -> dict:
-    wb = load_workbook(filename=filename)
+def parse_excel_file(filepath: Path) -> dict:
+    wb = load_workbook(filename=filepath)
 
     result: dict = {}
 
@@ -93,21 +90,22 @@ def parse_excel_file(filename: Path) -> dict:
     return result
 
 
-def convert_excel_file_to_json(tmp_filename: Path, json_filename: Path) -> None:
-    parsed_excel: dict = parse_excel_file(tmp_filename)
+def convert_excel_file_to_json(tmp_filepath: Path) -> None:
+    parsed_excel: dict = parse_excel_file(tmp_filepath)
     data: str = json.dumps(parsed_excel, indent=4, ensure_ascii=False)
-    with open(f"{tmp_filename.with_suffix('.json')}", "w", encoding="utf-8") as f:
+    with open(f"{tmp_filepath.with_suffix('.json')}", "w", encoding="utf-8") as f:
         f.write(data)
 
 
 def check_existing_files(upload_file: UploadFile):
-
-    current_directory = Path("../json_output_data")
+    storage_dir = os.environ.get("STORAGE_DIR", "json_output_data")
+    current_directory = Path("..", storage_dir)
     json_filename: Path = current_directory.joinpath(
         Path(upload_file.filename).with_suffix(".json")
     )
+    default_filename: Path = current_directory.joinpath(Path(upload_file.filename))
 
     for file in current_directory.iterdir():
-        if file == json_filename:
+        if file == json_filename or file == default_filename:
             return False
     return True

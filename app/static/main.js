@@ -1,5 +1,9 @@
 const form = document.querySelector('#form')
 
+function showResult(text) {
+  document.getElementById("warning").innerHTML = text
+}
+
 form.onsubmit = async (e) => {
   e.preventDefault();
 
@@ -7,12 +11,16 @@ form.onsubmit = async (e) => {
     method: 'POST',
     body: new FormData(form)
   });
+  console.log(form)
   try {
     let result = await response.json();
-    getStatus(result.task_id)
+    if (response.status === 201) {
+      getStatus(result.task_id)
+    }
+    showResult(result.text_message)
   }
   catch (e) {
-    alert('Ошибка ' + e.name + ":" + e.message + "\n" + e.stack);
+    showResult('Ошибка ' + e.name + ":" + e.message + "\n" + e.stack);
   }
 };
 

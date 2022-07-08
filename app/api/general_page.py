@@ -5,10 +5,9 @@ from typing import Union
 
 from celery.result import AsyncResult
 from fastapi import APIRouter, Request, UploadFile, status
+from service import check_existing_files, save_upload_file, validate_input_file_format
 from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
-
-from service import check_existing_files, save_upload_file
 from worker import handle_upload_file
 
 templates = Jinja2Templates(directory="templates")
@@ -29,19 +28,34 @@ def create_upload_excel_file(file: Union[UploadFile, None] = None):
     if not file:
         logger.info("Файл не был загружен")
         return JSONResponse(
-            {"message": "Файл не был загружен"}, status_code=status.HTTP_204_NO_CONTENT
+            {"text_message": "Файл не был загружен"},
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
-    if not check_existing_files(file):
+    elif not validate_input_file_format(file):
+        logger.info("Неверный формат файла")
+        return JSONResponse(
+            {
+                "text_message": "Неверный формат файла, файл должен "
+                "иметь расширение xlsx/xlsm/xltx/xltm"
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    elif not check_existing_files(file):
         logger.info("Файл уже существует")
         return JSONResponse(
-            {"message": "Файл уже существует"}, status_code=status.HTTP_204_NO_CONTENT
+            {"text_message": "Файл уже существует"},
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
-    tmp_file_path: Path = Path("../..", storage_dir, file.filename)
-    save_upload_file(file, tmp_file_path)
-    task = handle_upload_file.delay(str(tmp_file_path))
+    try:
+        tmp_file_path: Path = Path("../..", storage_dir, file.filename)
+        save_upload_file(file, tmp_file_path)
+        task = handle_upload_file.delay(str(tmp_file_path))
+        logger.info("Файл послупил в обработку")
+    except Exception as e:
+        logger.warning(f"При обработке файла {file.filename} возникла ошибка {e}")
     return JSONResponse(
-        {"message": "Обработка файла запущена", "task_id": task.id},
-        status_code=status.HTTP_200_OK,
+        {"text_message": "Обработка файла запущена", "task_id": task.id},
+        status_code=status.HTTP_201_CREATED,
     )
 
 

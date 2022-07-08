@@ -9,11 +9,12 @@
     <form enctype="multipart/form-data" method="post" id="form">
       <div class="form-group">
         <label for="fileUpload">Выберите файл для загрузки</label>
-        <input type="file" class="form-control-file" id="fileUpload" name="file"><br>
+        <input type="file" class="form-control-file" id="fileUpload" name="file" required><br>
         <button type="submit" class="btn btn-primary">Отправить</button>
       </div>
     </form>
   </div>
+  <div id="warning"></div>
   <br><br>
   <div>
     <h3>Статус обработки файла</h3>

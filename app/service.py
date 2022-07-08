@@ -109,3 +109,10 @@ def check_existing_files(upload_file: UploadFile):
         if file == json_filename or file == default_filename:
             return False
     return True
+
+
+def validate_input_file_format(upload_file: UploadFile):
+    supported_formats = [".xlsx", ".xlsm", ".xltx", ".xltm"]
+    if Path(upload_file.filename).suffix not in supported_formats:
+        return False
+    return True
